@@ -1,0 +1,100 @@
+---
+title: "Análisis de los libros mas vendidos hasta 2018 y sus características"
+author: "Yonelvis Gonzalez"
+date: "2025-09-14"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+---
+
+```{r library, include=FALSE}
+# Descargamos las librerias que vamos a utilizar
+library(dplyr)
+library(ggplot2)
+library(knitr)
+library(DT)
+library(tidyr)
+```
+
+```{r load_data}
+#cargamos el archivo que contiene la data
+datos_libros <- read.csv("C:/Users/JOSE ROJAS/OneDrive/Desktop/Yone/archive/best-selling-books.csv")
+```
+
+Esta breve investigación esta basada en un dataset de los libros que mas copias han vendido hasta el año 2018,en el mismo podemos encontrar información como sus autores, dividiendo los libros por su idioma original, genero y un estimado en millones en ventas.
+
+```{r load2_data}
+#la libreria "DT" nos permite monstrar el data frame completo 
+datatable(datos_libros)
+```
+
+## 1. Limpiamos el data frame
+
+A la hora de trabajar con nuestro data frame es importante asegurarse de que tengamos la información lo mas precisa posible para así poder entregar unos resultamos confiables.
+
+Para esto se eliminaran los datos errados o faltantes donominados **"NA"** y luego usaremos la función **sumary** que nos permitira visualizar un resumen estadística de nuestras varibles a trabajar.
+
+```{r clean-data}
+datos_libros[datos_libros== "-99"] <- NA
+#Remplazamos los datos errados sustituyendolos con "NA"
+datos_libros[datos_libros == "-"] <- NA
+datos_libros[datos_libros== " "] <- NA
+datos_libros[datos_libros== ""] <- NA
+#Nos aseguramos de no encontrar datos duplicados utilizando "distinct" dejando los datos únicos
+
+datos_libros_sin_duplicados <- datos_libros %>% distinct()
+#comprobamos por ultima vez que la data este limpia mediante el resumen estadístico antes mencionado
+summary(datos_libros_sin_duplicados)
+```
+
+## 2. Relacionamos la información que nos otorgan las variables
+
+Este trabajo esta enfocado meramente en analizar aquellas características de aquellos de los libros mas vendidos.
+
+### ¿Cómo se clasifican de acuerdo a su genero?
+
+Al trabajar con libros es importante identificar el genero al que pertenecen,
+
+```{r genre}
+books_genre <- datos_libros_sin_duplicados %>% filter(!is.na(Genre)) %>% count(Genre, sort = TRUE)
+datatable(books_genre, caption = "Distribución del género entre los libros")
+```
+
+En base a este listado observamos que el **genero de fantasia** es el que esta mas presente entre los libros mas vendidos, seguido de **Novelas** y libros de **autoayuda** además de una gran cantidad de obras con generos que explican con mayor detalle la obra a la que pertenecen.
+
+### ¿Cuál es el genero que mas vende?
+
+```{r sales_genre}
+sales_genre <- datos_libros_sin_duplicados %>% filter(!is.na(Genre) & !is.na(Approximate.sales.in.millions)) %>% group_by(Genre) %>% summarise(total_sales = sum(Approximate.sales.in.millions)) %>% arrange(desc(total_sales))
+datatable(sales_genre)
+```
+
+En este caso podemos observar con mayor facilidad que el genero ha generado mejores resultados en base a sus ventas ha sido la fantasia pues la misma cuenta con 737 millones de libros vendidos superando por mucho el resto de generos.
+
+```{r sales_graf, fig.width=5, fig.height=4}
+sales_genre_top5 <- datos_libros_sin_duplicados %>%
+  filter(!is.na(Genre) & !is.na(Approximate.sales.in.millions)) %>%
+  group_by(Genre) %>%
+  summarise(top_Sales = sum(Approximate.sales.in.millions)) %>%
+  arrange(desc(top_Sales)) %>%
+  top_n(5, top_Sales) 
+# Agregamos este paso para quedarnos solo con los 5 principales para visualizarlos mejor en la grafica
+ggplot(sales_genre_top5, aes(x = reorder(Genre, -top_Sales), y = top_Sales, fill = Genre)) + geom_col() + labs(title = "Libros vendidos por genero", x = "Género", y = "Ventas en millones") + theme_minimal()
+```
+
+### ¿Cual es el idioma original mas repetitivo en mercado?
+
+```{r libros_idioma}
+books_idioma <- datos_libros_sin_duplicados %>% filter(!is.na(Original.language)) %>% count(Original.language, sort = TRUE) 
+datatable(books_idioma, caption = "Distribución de los libros según su idioma original")
+```
+
+De entre los 16 idiomas presentes y los 174 libros distintos, Se puede analizar que 131 de esos libros cuentan con el ingles como idioma original, resultanto en que alrededor del 75% de los libros pertenecen a este idioma como su idioma original.
+
+```{r language_graf, fig.width=5, fig.height=4}
+books_idioma_top5 <- datos_libros_sin_duplicados %>% filter(!is.na(Original.language)) %>% count(Original.language, sort = TRUE) %>% top_n(5, n)
+
+ggplot(books_idioma_top5, aes(x= Original.language, y= n, fill = Original.language)) + geom_col() + labs(title = "Top 5 de los libros con respecto a su idioma original", x= "Idioma original", y= "número de libros") + theme_minimal()
+```
